@@ -1,0 +1,3 @@
+N2G
+crc32c
+requests

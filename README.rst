@@ -25,7 +25,7 @@ Install drawioedit by running:
 Examples
 ---------
 
-Set the fillcolor of a shapes
+Set the fillcolor of a shape
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: python

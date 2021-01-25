@@ -20,4 +20,9 @@ for link in drawing.find_link_between_nodes('Backbone-1','BB-new'):
 
 
 
-print(drawing.xml())
+print(f'saving {base_path}/output.drawio.png')
+drawing.save(f'{base_path}/output.drawio.png')
+print(f'saving {base_path}/output.drawio.svg')
+drawing.save(f'{base_path}/output.drawio.svg')
+print(f'saving {base_path}/output.drawio')
+drawing.save(f'{base_path}/output.drawio')

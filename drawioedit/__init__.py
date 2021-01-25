@@ -8,7 +8,9 @@ import xml.etree.ElementTree as ET
 import zlib
 import base64
 import html
-
+import subprocess
+import tempfile
+import os
 
 class InvalidCRCError(BaseException):
     pass
@@ -24,7 +26,8 @@ class DrawIOEdit(object):
         if file_path:
             self.load_from_file(file_path)
         self._drawing = None
-        
+        self._draw_io_path='/usr/bin/drawio'
+        self._xvfb_run_path='/usr/bin/xvfb-run'
 
         
 
@@ -214,7 +217,25 @@ class DrawIOEdit(object):
         return self._diagram.dump_xml()
 
     def save(self, destination_file):
-        pass
+        if destination_file.endswith('.drawio'):
+            with open(destination_file,'w') as tmp_fh:
+                tmp_fh.write(self.xml())
+            
+        elif destination_file.endswith('.drawio.png') or destination_file.endswith('.drawio.svg'):
+            if not os.path.exists(self._xvfb_run_path):
+                raise Exception(f'xvfb-run not found in configured path ({self._xvfb_run_path}), perhaps you should run "sudo apt install xvfb"')
+            if not os.path.exists(self._draw_io_path):
+                raise Exception(f'drawio desktop not found in configured path ({self._draw_io_path}), perhaps you should run "wget \'https://github.com/jgraph/drawio-desktop/releases/download/v14.1.8/draw.io-amd64-14.1.8.deb\' && sudo dpkg -i draw.io-amd64-14.1.8.deb && sudo apt-get install -f"')
+            tmp_fd,tmp_path=tempfile.mkstemp(suffix='.drawio')
+            with os.fdopen(tmp_fd,'w') as tmp_fh:
+                tmp_fh.write(self.xml())
+            result=subprocess.check_output([self._xvfb_run_path,self._draw_io_path,"-x","-e","-o",destination_file,tmp_path],universal_newlines=True)
+            self._log.debug(result)
+            os.unlink(tmp_path)
+        else:
+            raise ValueError(f'{destination_file} is missing supported file extension .drawio .drawio.svg .drawio.png')
+        
+        
     
     def find_link_between_nodes(self,node_a, node_b):
         node_a_id = self.find_any_by_label_or_value(node_a).attrib.get('id')

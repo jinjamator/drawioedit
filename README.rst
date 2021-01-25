@@ -25,7 +25,7 @@ Install drawioedit by running:
 Examples
 ---------
 
-Set the fillcolor of a shape
+Set the fillcolor of a shape or a link
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: python
@@ -42,17 +42,19 @@ Set the fillcolor of a shape
     drawing.set_shape_color('iperf-1',red)
     drawing.set_shape_color('iperf-3',red)
 
-
-
     for link in drawing.find_link_between_nodes('DC1-SW1','bbnew-1'):
-        link.attrib['style']=drawing._edit_style(link.attrib['style'],'strokeColor','#ff0000')
+        link.attrib['style']=drawing._edit_style(link.attrib['style'],'strokeColor',red)
 
     for link in drawing.find_link_between_nodes('Backbone-1','BB-new'):
-        link.attrib['style']=drawing._edit_style(link.attrib['style'],'strokeColor','#ff0000')
+        link.attrib['style']=drawing._edit_style(link.attrib['style'],'strokeColor',red)
 
+    print(f'saving {base_path}/output.drawio.png')
+    drawing.save(f'{base_path}/output.drawio.png')
+    print(f'saving {base_path}/output.drawio.svg')
+    drawing.save(f'{base_path}/output.drawio.svg')
+    print(f'saving {base_path}/output.drawio')
+    drawing.save(f'{base_path}/output.drawio')
 
-
-    print(drawing.xml())
 
 Contribute
 ----------
@@ -64,7 +66,6 @@ Roadmap
 -----------------
 
 Selected Roadmap items:
-    * add support for regeneration of png files with the updated data
     * add class documentation
 
 For documentation please refer to https://drawioedit.readthedocs.io/en/latest/

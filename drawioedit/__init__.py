@@ -104,6 +104,14 @@ class DrawIOEdit(object):
     def find_cell_by_attribute(self,attribute_name, attribute_value):
         return self._diagram.current_root.find(f"./mxCell[@{attribute_name}='{attribute_value}']")
 
+    def find_any_by_label_or_value(self, search_value):
+        node = self.find_object_by_attribute('label', search_value)
+        if not node:
+            search_attribute='value'
+            node=self.find_cell_by_attribute('value', search_value)
+        if not node:
+            self._log.error(f'cannot find anything with the label or value of: {search_value}')
+        return node
  
 
     def _parse_style(self,style):
@@ -206,3 +214,20 @@ class DrawIOEdit(object):
 
     def save(self, destination_file):
         pass
+    
+    def find_link_between_nodes(self,node_a, node_b):
+        node_a_id = self.find_any_by_label_or_value(node_a).attrib.get('id')
+        node_b_id = self.find_any_by_label_or_value(node_b).attrib.get('id')
+        links = []
+        for node in self._diagram.current_root.findall(f"./*[@source='{node_a_id}']"):
+            if node.attrib.get('target') == node_b_id:
+                links.append(node)
+        for node in self._diagram.current_root.findall(f"./*[@source='{node_b_id}']"):
+            if node.attrib.get('target') == node_a_id:
+                links.append(node)
+
+        return links
+        
+    
+        
+

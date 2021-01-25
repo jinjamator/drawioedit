@@ -221,7 +221,7 @@ class DrawIOEdit(object):
             with open(destination_file,'w') as tmp_fh:
                 tmp_fh.write(self.xml())
             
-        elif destination_file.endswith('.drawio.png') or destination_file.endswith('.drawio.svg'):
+        elif destination_file.endswith('.png') or destination_file.endswith('.svg') or destination_file.endswith('.jpg'):
             if not os.path.exists(self._xvfb_run_path):
                 raise Exception(f'xvfb-run not found in configured path ({self._xvfb_run_path}), perhaps you should run "sudo apt install xvfb"')
             if not os.path.exists(self._draw_io_path):

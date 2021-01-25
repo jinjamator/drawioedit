@@ -52,6 +52,8 @@ Set the fillcolor of a shape or a link
     drawing.save(f'{base_path}/output.drawio.png')
     print(f'saving {base_path}/output.drawio.svg')
     drawing.save(f'{base_path}/output.drawio.svg')
+    print(f'saving {base_path}/output.drawio.jpg')
+    drawing.save(f'{base_path}/output.drawio.jpg')
     print(f'saving {base_path}/output.drawio')
     drawing.save(f'{base_path}/output.drawio')
 

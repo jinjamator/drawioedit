@@ -24,7 +24,8 @@ class DrawIOEdit(object):
         if file_path:
             self.load_from_file(file_path)
         self._drawing = None
-        self._log.error = print
+        
+
         
 
     def load_from_file(self, file_path, file_type=None):

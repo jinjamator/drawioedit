@@ -238,9 +238,17 @@ class DrawIOEdit(object):
         
     
     def find_link_between_nodes(self,node_a, node_b):
-        node_a_id = self.find_any_by_label_or_value(node_a).attrib.get('id')
-        node_b_id = self.find_any_by_label_or_value(node_b).attrib.get('id')
         links = []
+        try:
+            node_a_id = self.find_any_by_label_or_value(node_a).attrib.get('id')
+        except AttributeError:
+            self._log.error('cannot find node_a id -> no link found')
+            return links
+        try:
+            node_b_id = self.find_any_by_label_or_value(node_b).attrib.get('id')
+        except AttributeError:
+            self._log.error('cannot find node_b id -> no link found')
+            return links
         for node in self._diagram.current_root.findall(f"./*[@source='{node_a_id}']"):
             if node.attrib.get('target') == node_b_id:
                 links.append(node)

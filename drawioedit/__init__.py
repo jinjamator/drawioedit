@@ -229,7 +229,7 @@ class DrawIOEdit(object):
             tmp_fd,tmp_path=tempfile.mkstemp(suffix='.drawio')
             with os.fdopen(tmp_fd,'w') as tmp_fh:
                 tmp_fh.write(self.xml())
-            result=subprocess.check_output([self._xvfb_run_path,self._draw_io_path,"-x","-e","-o",destination_file,tmp_path],universal_newlines=True)
+            result=subprocess.check_output([self._xvfb_run_path,"-a",self._draw_io_path,"-x","-e","-o",destination_file,tmp_path],universal_newlines=True)
             self._log.debug(result)
             os.unlink(tmp_path)
         else:

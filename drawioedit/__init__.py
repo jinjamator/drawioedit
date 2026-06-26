@@ -41,10 +41,9 @@ class DrawIOEdit(object):
         if file_type == 'png':
             self.extract_xml_from_png(file_path)
             self.load_from_string(self._src_xml)
-        if file_type == 'svg':
+        elif file_type == 'svg':
             self.extract_xml_from_svg(file_path)
             self.load_from_string(self._src_xml)
-
         else:
             raise ValueError(f'unsupported filetype {file_type}')
         # print(self._src_xml)
@@ -91,6 +90,12 @@ class DrawIOEdit(object):
             orig_xml=svg_root.attrib.get('content')
             dig_root=ET.fromstring(orig_xml)
             for doc in dig_root.findall('./diagram'):
+                # draw.io can store the diagram either compressed
+                # (base64 + raw deflate inside the <diagram> text) or
+                # uncompressed (an inline <mxGraphModel> child element).
+                if doc.find('./mxGraphModel') is not None:
+                    # already uncompressed -> nothing to extract
+                    continue
                 xmlb=zlib.decompress(base64.b64decode( doc.text), -15)
                 doc.text=""
                 dxml=ET.fromstring(requests.utils.unquote(xmlb.decode('latin-1')))

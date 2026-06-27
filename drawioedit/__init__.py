@@ -9,6 +9,7 @@ import zlib
 import base64
 import html
 import re
+import shutil
 import subprocess
 import tempfile
 import os
@@ -258,6 +259,47 @@ class DrawIOEdit(object):
     def xml(self):
         return self._diagram.dump_xml()
 
+    # fonts that render with (near) identical metrics; substituting within a
+    # group keeps text the right size, so it is not worth warning about
+    _FONT_COMPAT_GROUPS = [
+        {'helvetica', 'helvetica neue', 'arial', 'liberation sans', 'nimbus sans', 'arimo'},
+        {'times', 'times new roman', 'liberation serif', 'nimbus roman', 'tinos'},
+        {'courier', 'courier new', 'liberation mono', 'nimbus mono', 'cousine'},
+    ]
+
+    def _check_fonts(self):
+        """Warn if a font used by the diagram is missing and gets substituted by
+        a font with different metrics (which makes exported text the wrong
+        size/weight). Best effort: silently skipped when fc-match is absent."""
+        fc_match = shutil.which('fc-match')
+        if not fc_match:
+            self._log.debug('fc-match not found -> skipping font availability check')
+            return
+        families = {f.strip() for f in re.findall(r'fontFamily=([^;"]+)', self.xml())}
+        families.add('Helvetica')  # drawio default when no fontFamily is set
+        for family in sorted(f for f in families if f):
+            try:
+                matched = subprocess.check_output(
+                    [fc_match, '--format=%{family}', family],
+                    universal_newlines=True).strip().lower()
+            except (subprocess.CalledProcessError, OSError) as err:
+                self._log.debug(f'fc-match failed for "{family}": {err}')
+                continue
+            matched_families = [m.strip() for m in matched.split(',')]
+            requested = family.lower()
+            if any(requested in m or m in requested for m in matched_families):
+                continue  # requested font is actually installed
+            if any(requested in g and any(m in g for m in matched_families)
+                   for g in self._FONT_COMPAT_GROUPS):
+                continue  # metric-compatible substitute -> fine
+            hint = ''
+            if any(requested in g for g in self._FONT_COMPAT_GROUPS[:1]):
+                hint = ' (e.g. "sudo apt install fonts-liberation")'
+            self._log.warning(
+                f'font "{family}" is not installed; fontconfig substitutes '
+                f'"{matched_families[0]}", so text in the exported image may be '
+                f'the wrong size/weight. Install a matching font{hint}.')
+
     def save(self, destination_file, scale=4, quality=100):
         if destination_file.endswith('.drawio'):
             with open(destination_file,'w') as tmp_fh:
@@ -268,6 +310,7 @@ class DrawIOEdit(object):
                 raise Exception(f'xvfb-run not found in configured path ({self._xvfb_run_path}), perhaps you should run "sudo apt install xvfb"')
             if not os.path.exists(self._draw_io_path):
                 raise Exception(f'drawio desktop not found in configured path ({self._draw_io_path}), perhaps you should run "wget \'https://github.com/jgraph/drawio-desktop/releases/download/v14.1.8/draw.io-amd64-14.1.8.deb\' && sudo dpkg -i draw.io-amd64-14.1.8.deb && sudo apt-get install -f"')
+            self._check_fonts()
             tmp_fd,tmp_path=tempfile.mkstemp(suffix='.drawio')
             with os.fdopen(tmp_fd,'w') as tmp_fh:
                 tmp_fh.write(self.xml())

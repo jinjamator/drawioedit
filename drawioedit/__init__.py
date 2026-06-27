@@ -10,6 +10,7 @@ import base64
 import html
 import re
 import shutil
+import signal
 import subprocess
 import tempfile
 import os
@@ -300,7 +301,7 @@ class DrawIOEdit(object):
                 f'"{matched_families[0]}", so text in the exported image may be '
                 f'the wrong size/weight. Install a matching font{hint}.')
 
-    def save(self, destination_file, scale=4, quality=100):
+    def save(self, destination_file, scale=4, quality=100, timeout=180):
         if destination_file.endswith('.drawio'):
             with open(destination_file,'w') as tmp_fh:
                 tmp_fh.write(self.xml())
@@ -314,7 +315,10 @@ class DrawIOEdit(object):
             tmp_fd,tmp_path=tempfile.mkstemp(suffix='.drawio')
             with os.fdopen(tmp_fd,'w') as tmp_fh:
                 tmp_fh.write(self.xml())
-            cmd=[self._xvfb_run_path,"-a",self._draw_io_path,"-x","-e","-o",destination_file]
+            # --disable-gpu forces software rendering: headless drawio otherwise
+            # tries to use the GPU (VK_ERROR_INCOMPATIBLE_DRIVER) and can wedge
+            # forever while rasterising large (high -s) canvases.
+            cmd=[self._xvfb_run_path,"-a",self._draw_io_path,"-x","-e","--disable-gpu","-o",destination_file]
             # render at higher resolution so the bitmap stays crisp when scaled
             # up inside documents; svg is vector and ignores scale
             if scale and not destination_file.endswith('.svg'):
@@ -323,11 +327,33 @@ class DrawIOEdit(object):
             if quality and destination_file.endswith('.jpg'):
                 cmd+=["-q",str(quality)]
             cmd.append(tmp_path)
-            result=subprocess.check_output(cmd,universal_newlines=True)
-            self._log.debug(result)
-            os.unlink(tmp_path)
+            try:
+                result=self._run_export(cmd,timeout)
+                self._log.debug(result)
+            finally:
+                os.unlink(tmp_path)
         else:
             raise ValueError(f'{destination_file} is missing supported file extension .drawio .drawio.svg .drawio.png')
+
+    def _run_export(self,cmd,timeout):
+        """Run the drawio export, never blocking longer than ``timeout`` seconds.
+
+        drawio is launched in its own process group so that, on a timeout, the
+        whole xvfb-run/drawio/chromium tree is killed instead of being orphaned
+        and left hanging."""
+        proc=subprocess.Popen(cmd,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,
+                              universal_newlines=True,start_new_session=True)
+        try:
+            out,_=proc.communicate(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            os.killpg(os.getpgid(proc.pid),signal.SIGKILL)
+            out,_=proc.communicate()
+            raise Exception(f'drawio export timed out after {timeout}s and was killed; '
+                            f'try a lower scale. command: {" ".join(cmd)}\n{out}')
+        if proc.returncode != 0:
+            raise Exception(f'drawio export failed (exit {proc.returncode}). '
+                            f'command: {" ".join(cmd)}\n{out}')
+        return out
         
         
     

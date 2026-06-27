@@ -258,11 +258,11 @@ class DrawIOEdit(object):
     def xml(self):
         return self._diagram.dump_xml()
 
-    def save(self, destination_file):
+    def save(self, destination_file, scale=4, quality=100):
         if destination_file.endswith('.drawio'):
             with open(destination_file,'w') as tmp_fh:
                 tmp_fh.write(self.xml())
-            
+
         elif destination_file.endswith('.png') or destination_file.endswith('.svg') or destination_file.endswith('.jpg'):
             if not os.path.exists(self._xvfb_run_path):
                 raise Exception(f'xvfb-run not found in configured path ({self._xvfb_run_path}), perhaps you should run "sudo apt install xvfb"')
@@ -271,7 +271,16 @@ class DrawIOEdit(object):
             tmp_fd,tmp_path=tempfile.mkstemp(suffix='.drawio')
             with os.fdopen(tmp_fd,'w') as tmp_fh:
                 tmp_fh.write(self.xml())
-            result=subprocess.check_output([self._xvfb_run_path,"-a",self._draw_io_path,"-x","-e","-o",destination_file,tmp_path],universal_newlines=True)
+            cmd=[self._xvfb_run_path,"-a",self._draw_io_path,"-x","-e","-o",destination_file]
+            # render at higher resolution so the bitmap stays crisp when scaled
+            # up inside documents; svg is vector and ignores scale
+            if scale and not destination_file.endswith('.svg'):
+                cmd+=["-s",str(scale)]
+            # jpg is lossy -> request maximum quality to avoid soft edges
+            if quality and destination_file.endswith('.jpg'):
+                cmd+=["-q",str(quality)]
+            cmd.append(tmp_path)
+            result=subprocess.check_output(cmd,universal_newlines=True)
             self._log.debug(result)
             os.unlink(tmp_path)
         else:

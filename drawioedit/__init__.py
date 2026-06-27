@@ -8,6 +8,7 @@ import xml.etree.ElementTree as ET
 import zlib
 import base64
 import html
+import re
 import subprocess
 import tempfile
 import os
@@ -107,11 +108,40 @@ class DrawIOEdit(object):
         self._diagram = drawio_diagram()
         return self._diagram.from_xml(data)
     
+    @staticmethod
+    def _attribute_lines(value):
+        """Split a drawio label/value attribute into its individual text lines.
+
+        drawio stores multi-line text using a mix of real newlines, HTML line
+        breaks (``<br>``/``<br/>``) and numeric entities (``&#10;``/``&#xa;``),
+        so normalise all of them before splitting.
+        """
+        if value is None:
+            return []
+        # entities surviving as literal text after XML parsing
+        value = re.sub(r'&#(10|x0?a);', '\n', value, flags=re.IGNORECASE)
+        value = re.sub(r'<br\s*/?>', '\n', value, flags=re.IGNORECASE)
+        return [line.strip() for line in value.split('\n')]
+
+    def _find_by_attribute_line(self, tag, attribute_name, attribute_value):
+        """Fallback match: find a node whose attribute has ``attribute_value``
+        as one of its text lines."""
+        for node in self._diagram.current_root.findall(f"./{tag}"):
+            if attribute_value in self._attribute_lines(node.attrib.get(attribute_name)):
+                return node
+        return None
+
     def find_object_by_attribute(self,attribute_name, attribute_value):
-        return self._diagram.current_root.find(f"./object[@{attribute_name}='{attribute_value}']")
-    
+        node = self._diagram.current_root.find(f"./object[@{attribute_name}='{attribute_value}']")
+        if node is None:
+            node = self._find_by_attribute_line('object', attribute_name, attribute_value)
+        return node
+
     def find_cell_by_attribute(self,attribute_name, attribute_value):
-        return self._diagram.current_root.find(f"./mxCell[@{attribute_name}='{attribute_value}']")
+        node = self._diagram.current_root.find(f"./mxCell[@{attribute_name}='{attribute_value}']")
+        if node is None:
+            node = self._find_by_attribute_line('mxCell', attribute_name, attribute_value)
+        return node
 
     def find_any_by_label_or_value(self, search_value):
         node = self.find_object_by_attribute('label', search_value)

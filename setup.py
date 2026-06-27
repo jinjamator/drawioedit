@@ -1,22 +1,40 @@
 import setuptools
 import os
+import re
 from subprocess import check_output
 
 command = "git describe --tags --dirty"
-version_format = ("{tag}.dev{commitcount}+{gitsha}",)
 
 
-def format_version(version, fmt):
-    parts = version.split("-")
-    assert len(parts) in (3, 4)
-    dirty = len(parts) == 4
-    tag, count, sha = parts[:3]
-    if count == "0" and not dirty:
-        return tag
-    return fmt.format(tag=tag, commitcount=count, gitsha=sha.lstrip("g"))
+def format_version(describe):
+    """Turn ``git describe --tags --dirty`` output into a PEP 440 version.
+
+    Handles the four forms it can emit::
+
+        <tag>
+        <tag>-dirty
+        <tag>-<count>-g<sha>
+        <tag>-<count>-g<sha>-dirty
+
+    Commits ahead of the tag become a ``.devN`` release; the short sha and a
+    dirty working tree are encoded as PEP 440 local version labels (after ``+``)
+    so e.g. ``0.4.2-dirty`` -> ``0.4.2+dirty`` instead of an invalid version.
+    """
+    match = re.match(
+        r"^(?P<tag>.+?)"
+        r"(?:-(?P<count>\d+)-g(?P<sha>[0-9a-f]+))?"
+        r"(?:-(?P<dirty>dirty))?$",
+        describe,
+    )
+    tag, count, sha, dirty = match.group("tag", "count", "sha", "dirty")
+    version = f"{tag}.dev{count}" if count and count != "0" else tag
+    local = [part for part in (f"g{sha}" if sha else None, dirty) if part]
+    if local:
+        version += "+" + ".".join(local)
+    return version
 
 
-version = check_output(command.split()).decode("utf-8").strip()
+version = format_version(check_output(command.split()).decode("utf-8").strip())
 
 
 with open("README.rst", "r") as fh:

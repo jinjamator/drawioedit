@@ -110,17 +110,24 @@ class DrawIOEdit(object):
     
     @staticmethod
     def _attribute_lines(value):
-        """Split a drawio label/value attribute into its individual text lines.
+        """Split a drawio label/value attribute into its visible text lines.
 
-        drawio stores multi-line text using a mix of real newlines, HTML line
-        breaks (``<br>``/``<br/>``) and numeric entities (``&#10;``/``&#xa;``),
-        so normalise all of them before splitting.
+        drawio stores rich text inside the attribute: line breaks are encoded
+        as real newlines, ``<br>``/``<br/>`` or numeric entities
+        (``&#10;``/``&#xa;``), and the text may be wrapped in HTML tags such as
+        ``<font>`` whose boundaries can even fall in the middle of a word
+        (e.g. ``leaf-<font>1151</font>``). Normalise the breaks, strip every
+        remaining tag and unescape entities so the result matches what is
+        rendered on the shape.
         """
         if value is None:
             return []
-        # entities surviving as literal text after XML parsing
+        # line breaks -> real newlines
         value = re.sub(r'&#(10|x0?a);', '\n', value, flags=re.IGNORECASE)
         value = re.sub(r'<br\s*/?>', '\n', value, flags=re.IGNORECASE)
+        # drop any other html tags (e.g. <font ...>, </font>, <b>, <div>)
+        value = re.sub(r'<[^>]+>', '', value)
+        value = html.unescape(value)
         return [line.strip() for line in value.split('\n')]
 
     def _find_by_attribute_line(self, tag, attribute_name, attribute_value):
